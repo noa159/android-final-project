@@ -1,0 +1,93 @@
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.project.accommodations.view.LoginFragment"
+        android:label="fragment_login"
+        tools:layout="@layout/fragment_login">
+        <action
+            android:id="@+id/action_loginFragment_to_map"
+            app:destination="@id/mapFragment" />
+        <action
+            android:id="@+id/action_loginFragment_to_signUpFragment"
+            app:destination="@id/registrationFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/myAccommodationsFragment"
+        android:name="com.project.accommodations.view.MyAccommodationsFragment"
+        android:label="fragment_my_accommodations"
+        tools:layout="@layout/fragment_my_accommodations">
+        <action
+            android:id="@+id/action_myAccommodationsFragment_to_editFragment"
+            app:destination="@id/editFragment" />
+        <!-- Additional actions for this fragment -->
+    </fragment>
+
+    <!-- Edit Fragment -->
+    <fragment
+        android:id="@+id/editFragment"
+        android:name="com.project.accommodations.view.EditFragment"
+        android:label="fragment_edit"
+        tools:layout="@layout/fragment_edit">
+        <argument
+            android:name="id"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addAccommodationFragment"
+        android:name="com.project.accommodations.view.UploadFragment"
+        android:label="fragment_add_accommodation"
+        tools:layout="@layout/fragment_upload">
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/accommodationDetailsFragment"
+        android:name="com.project.accommodations.view.AccommodationViewFragment"
+        android:label="fragment_accommodation_details"
+        tools:layout="@layout/fragment_accommodation_view">
+        <argument
+            android:name="id"
+            app:argType="string" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/registrationFragment"
+        android:name="com.project.accommodations.view.SignUpFragment"
+        android:label="fragment_registration"
+        tools:layout="@layout/fragment_sign_up">
+        <action
+            android:id="@+id/action_registrationFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/mapFragment"
+        android:name="com.project.accommodations.view.MapFragment"
+        android:label="fragment_map"
+        tools:layout="@layout/fragment_map" >
+        <action
+            android:id="@+id/action_mapFragment_to_addAccommodationFragment"
+            app:destination="@id/addAccommodationFragment" />
+        <action
+            android:id="@+id/action_mapFragment_to_myAccommodationsFragment"
+            app:destination="@id/myAccommodationsFragment" />
+        <action
+            android:id="@+id/action_mapFragment_to_accommodationDetailsFragment"
+            app:destination="@id/accommodationDetailsFragment" >
+            <argument
+                android:name="id"
+                app:argType="string" />
+
+        </action>
+
+
+    </fragment>
+
+
+</navigation>

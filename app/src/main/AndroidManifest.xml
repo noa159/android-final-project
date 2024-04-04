@@ -15,7 +15,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.accommodations">
         <activity
-            android:name=".view.MyAccommodationsActivity"
+            android:name=".view.MyAccommodationsFragment"
             android:exported="false" />
         <activity
             android:name=".view.UploadActivity"
