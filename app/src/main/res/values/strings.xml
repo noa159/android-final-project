@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">accommodations</string>
+    <string name="navigation_drawer_open">dsadsa</string>
+    <string name="navigation_drawer_close">ds</string>
+
+    <string-array name="categories">
+        <item>ריהוט</item>
+        <item>כלי גינה</item>
+        <item> ספרים</item>
+        <item>ביגוד</item>
+    </string-array>
+
+    <string-array name="areas">
+        <item>גוש דן</item>
+        <item>ירושלים</item>
+        <item>חיפה והקריות</item>
+        <item>באר שבע</item>
+        <item>שפלה</item>
+        <item>אילת</item>
+    </string-array>
+
+    <string-array name="states">
+        <item>חדש</item>
+        <item>משומש - כמו חדש</item>
+        <item>משומש</item>
+        <item>צריך תיקון</item>
+    </string-array>
+
+
+</resources>

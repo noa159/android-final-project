@@ -1,0 +1,75 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/mapbkg"
+    tools:context=".view.MapActivity">
+
+    <FrameLayout
+        android:id="@+id/topPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintTop_toBottomOf="@id/layout"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp">
+
+            <Button
+                android:id="@+id/addAccommodation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="הוסף מקום אירוח"
+                android:onClick="upload"
+                android:backgroundTint="@color/colorPrimary"
+                android:textColor="@android:color/white"
+                android:layout_marginEnd="8dp"/> <!-- Add margin to the end -->
+
+            <Button
+                android:id="@+id/myAccommodations"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="צפייה במקומות שלי"
+                android:onClick="myAccommodations"
+                android:backgroundTint="@color/colorPrimary"
+                android:textColor="@android:color/white"
+                android:layout_marginStart="8dp"/>
+
+        </LinearLayout>
+
+
+    </FrameLayout>
+
+    <!-- OSM Map -->
+    <org.osmdroid.views.MapView
+        android:id="@+id/osmmap"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="10dp"
+        android:layout_weight="7"/> <!-- 70% -->
+
+    <FrameLayout
+        android:id="@+id/bottomPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layoutDirection="rtl"
+        android:layout_weight="1"> <!-- 10% -->
+        <Button
+            android:id="@+id/btnLogut"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="התנתקות"
+            android:onClick="signOut"
+            android:backgroundTint="@color/black"
+            android:textColor="@android:color/white"
+            android:layout_gravity="center"/>
+    </FrameLayout>
+</LinearLayout>
