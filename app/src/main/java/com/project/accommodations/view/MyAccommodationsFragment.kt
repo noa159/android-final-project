@@ -6,15 +6,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.project.accommodations.adapter.MyAccommodationAdapter
 import com.project.accommodations.databinding.FragmentMyAccommodationsBinding
 import com.project.accommodations.model.Accommodation
 import androidx.navigation.fragment.findNavController
-import com.google.firebase.firestore.Query
+import com.project.accommodations.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MyAccommodationsFragment : Fragment(), MyAccommodationAdapter.AccommodationActionsListener {
 
@@ -22,7 +25,6 @@ class MyAccommodationsFragment : Fragment(), MyAccommodationAdapter.Accommodatio
     private val binding get() = _binding!!
 
     private val auth by lazy { Firebase.auth }
-    private val db by lazy { Firebase.firestore }
     private lateinit var accommodationsArrayList: ArrayList<Accommodation>
     private lateinit var myAccommodationsAdapter: MyAccommodationAdapter
 
@@ -53,11 +55,25 @@ class MyAccommodationsFragment : Fragment(), MyAccommodationAdapter.Accommodatio
     }
 
     override fun onDelete(id: String, position: Int) {
-        db.collection("Accommodations").document(id).delete().addOnSuccessListener {
-            accommodationsArrayList.removeAt(position)
-            myAccommodationsAdapter.notifyDataSetChanged()
-        }.addOnFailureListener {
-            Toast.makeText(context, "Error", Toast.LENGTH_LONG).show()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val rowsAffected = AppDatabase.getInstance(requireContext()).accommodationDao().deleteById(id)
+                if (rowsAffected > 0) {
+                    withContext(Dispatchers.Main) {
+                        accommodationsArrayList.removeAt(position)
+                        myAccommodationsAdapter.notifyDataSetChanged()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Accommodation not found.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error deleting accommodation.", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -68,32 +84,16 @@ class MyAccommodationsFragment : Fragment(), MyAccommodationAdapter.Accommodatio
 
     private fun getData() {
         auth.currentUser?.email?.let { userEmail ->
-            db.collection("Accommodations").whereEqualTo("userEmail", userEmail)
-                .orderBy("date", Query.Direction.DESCENDING)
-                .addSnapshotListener { value, error ->
-                    if (error != null) {
-                        Toast.makeText(context, error.localizedMessage, Toast.LENGTH_LONG).show()
-                    } else {
-                        accommodationsArrayList.clear()
-                        value?.documents?.forEach { document ->
-                            val id = document.id
-                            val comment = document.getString("comment") ?: ""
-                            val userEmail = document.getString("userEmail") ?: ""
-                            val name = document.getString("name") ?: ""
-                            val phone = document.getString("phone") ?: ""
-                            val downloadUrl = document.getString("downloadUrl") ?: ""
-                            val latitude = document.getDouble("latitude") ?: 0.0
-                            val longitude = document.getDouble("longitude") ?: 0.0
-                            val accommodation = Accommodation(id, name, userEmail, comment, phone, longitude, latitude, downloadUrl)
-
-                            accommodation?.let { accommodationsArrayList.add(it) }
-                        }
-                        myAccommodationsAdapter.notifyDataSetChanged()
-                    }
+            AppDatabase.getInstance(requireContext()).accommodationDao()
+                .getByEmail(userEmail).observe(viewLifecycleOwner) { accommodations ->
+                    accommodationsArrayList.clear()
+                    accommodationsArrayList.addAll(accommodations)
+                    myAccommodationsAdapter.notifyDataSetChanged()
                 }
+        } ?: run {
+            Toast.makeText(context, "User email not found.", Toast.LENGTH_LONG).show()
         }
     }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

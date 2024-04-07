@@ -9,14 +9,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.project.accommodations.database.AppDatabase
 import com.project.accommodations.databinding.FragmentAccommodationViewBinding
 import com.project.accommodations.model.Accommodation
 import com.squareup.picasso.Picasso
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.api.IMapController
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -29,8 +34,6 @@ class AccommodationViewFragment : Fragment() {
     private var _binding: FragmentAccommodationViewBinding? = null
     private val binding get() = _binding!!
 
-    private val auth by lazy { Firebase.auth }
-    private val db by lazy { Firebase.firestore }
     private lateinit var accommodation: Accommodation
     private lateinit var id: String
 
@@ -66,45 +69,33 @@ class AccommodationViewFragment : Fragment() {
     }
 
     private fun fetchAccommodation() {
-        db.collection("Accommodations").document(id).get().addOnSuccessListener { document ->
-            if (document != null) {
-                // Extract fields from the document
-                val id = document.id
-                val comment = document.getString("comment") ?: ""
-                val userEmail = document.getString("userEmail") ?: ""
-                val name = document.getString("name") ?: ""
-                val phone = document.getString("phone") ?: ""
-                val downloadUrl = document.getString("downloadUrl") ?: ""
-                val latitude = document.getDouble("latitude") ?: 0.0
-                val longitude = document.getDouble("longitude") ?: 0.0
-                accommodation = Accommodation(id, name, userEmail, comment, phone, longitude, latitude, downloadUrl)
+        val accommodationDao = AppDatabase.getInstance(requireContext()).accommodationDao()
 
+        accommodationDao.getById(id).observe(viewLifecycleOwner) { accommodation ->
+            if (accommodation != null) {
                 binding.tvComment.text = accommodation.comment
                 binding.tvName.text = accommodation.name
                 binding.tvPhone.text = accommodation.phone
-                Picasso.get().load(accommodation.downloadUrl)
-                    .into(binding.ivPostImage)
+                Picasso.get().load(accommodation.downloadUrl).into(binding.ivPostImage)
 
-                val accommodationLocation = GeoPoint(accommodation.latitude,accommodation.longitude)
-
+                val accommodationLocation = GeoPoint(accommodation.latitude, accommodation.longitude)
                 val marker = Marker(mMap).apply {
                     position = accommodationLocation
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     title = accommodation.name
                 }
 
+                mMap.overlays.clear()
                 mMap.overlays.add(marker)
                 controller.setCenter(accommodationLocation)
                 mMap.invalidate()
                 controller.setZoom(14.0)
-
             } else {
-                Toast.makeText(requireContext(), "No document found", Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "No accommodation found", Toast.LENGTH_LONG).show()
             }
-        }.addOnFailureListener { exception ->
-            Toast.makeText(requireContext(), exception.localizedMessage, Toast.LENGTH_LONG).show()
         }
     }
+
 
 
     private fun contact() {

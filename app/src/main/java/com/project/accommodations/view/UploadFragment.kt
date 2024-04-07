@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -25,7 +26,12 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.ktx.storage
+import com.project.accommodations.database.AppDatabase
 import com.project.accommodations.databinding.FragmentUploadBinding
+import com.project.accommodations.model.Accommodation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.api.IMapController
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -133,35 +139,44 @@ class UploadFragment  : Fragment() {
 
         if (selectedPicture != null) {
             imageReference.putFile(selectedPicture!!).addOnSuccessListener {
+                imageReference.downloadUrl.addOnSuccessListener { uri ->
+                    val downloadUrl = uri.toString()
+                    val accommodation = Accommodation(
+                        downloadUrl = downloadUrl,
+                        email = auth.currentUser?.email ?: "",
+                        name = binding.nameText.text.toString(),
+                        phone = binding.phone.text.toString(),
+                        comment = binding.commentText.text.toString(),
+                        longitude = selectedPosition.longitude,
+                        latitude = selectedPosition.latitude,
+                        date = System.currentTimeMillis()
+                    )
 
-                imageReference.downloadUrl.addOnSuccessListener {
-                    val downloadUrl = it.toString()
+                    // Insert accommodation into Room database
+                    viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            AppDatabase.getInstance(requireContext()).accommodationDao().insert(accommodation)
 
-                    val postMap = hashMapOf<String, Any>()
-                    postMap.put("downloadUrl", downloadUrl)
-                    postMap.put("userEmail", auth.currentUser!!.email!!)
-                    postMap.put("name", binding.nameText.text.toString())
-                    postMap.put("phone", binding.phone.text.toString())
-                    postMap.put("comment", binding.commentText.text.toString())
-                    postMap.put("longitude", selectedPosition.longitude)
-                    postMap.put("latitude", selectedPosition.latitude)
-                    postMap.put("date", Timestamp.now())
-
-
-                    firestore.collection("Accommodations").add(postMap).addOnSuccessListener{
-                        findNavController().popBackStack()
-                    }.addOnFailureListener {
-                        Toast.makeText(requireContext(), "Permission needed!", Toast.LENGTH_LONG)
-                            .show()
+                            withContext(Dispatchers.Main) {
+                                findNavController().popBackStack()
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(requireContext(), "Error saving accommodation", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     }
-
+                }.addOnFailureListener {
+                    Toast.makeText(requireContext(), "Failed to upload image.", Toast.LENGTH_LONG).show()
                 }
             }.addOnFailureListener {
-                Toast.makeText(requireContext(), "Permission needed!", Toast.LENGTH_LONG)
-                    .show()
+                Toast.makeText(requireContext(), "Failed to upload image.", Toast.LENGTH_LONG).show()
             }
+        } else {
+            Toast.makeText(requireContext(), "No image selected.", Toast.LENGTH_LONG).show()
         }
     }
+
 
     fun selectImage() {
         val intentToGallery =
@@ -170,7 +185,7 @@ class UploadFragment  : Fragment() {
     }
 
     private fun registerLauncher() {
-         activityResultLauncher =
+        activityResultLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK) {
                     val intentFromResult = result.data

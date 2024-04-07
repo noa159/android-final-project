@@ -4,7 +4,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -14,10 +13,8 @@ import com.project.accommodations.databinding.FragmentMapBinding
 import com.project.accommodations.model.Accommodation
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.project.accommodations.database.AppDatabase
 import org.osmdroid.api.IMapController
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapListener
@@ -36,7 +33,6 @@ class MapFragment : Fragment(), MapListener {
 
     private lateinit var mMap: MapView
     private lateinit var controller: IMapController
-    private lateinit var db: FirebaseFirestore
     private lateinit var mMyLocationOverlay: MyLocationNewOverlay
     private lateinit var auth: FirebaseAuth
 
@@ -54,7 +50,7 @@ class MapFragment : Fragment(), MapListener {
         mMap.setMultiTouchControls(true)
 
         auth = Firebase.auth
-        db = Firebase.firestore
+
 
         getData()
 
@@ -87,35 +83,18 @@ class MapFragment : Fragment(), MapListener {
 
         binding.btnLogut.setOnClickListener {
             auth.signOut()
-            //findNavController().navigate(R.id.ac)
             findNavController().navigate(R.id.action_mapFragment_to_loginFragment)
         }
 
     }
 
     private fun getData() {
-        db.collection("Accommodations").orderBy("date",
-            Query.Direction.DESCENDING).addSnapshotListener { value, error ->
-            if (error != null) {
-                Toast.makeText(requireContext(), error.localizedMessage, Toast.LENGTH_LONG).show()
-            } else {
-                if (value != null) {
-                    if (!value.isEmpty) {
-                        val documents = value.documents
-                        for (document in documents) {
-                            val id = document.id;
-                            val comment = document.get("comment") as String
-                            val userEmail = document.get("userEmail") as String
-                            val name = document.get("name") as String
-                            val phone = document.get("phone") as String
-                            val downloadUrl = document.get("downloadUrl") as String
-                            val latitude = document.get("latitude") as Double
-                            val longitude = document.get("longitude") as Double
-                            val accommodation = Accommodation(id,name , userEmail, comment,phone ,longitude , latitude, downloadUrl);
-                            addMarker(accommodation)
-                        }
-                    }
-                }
+        val db = AppDatabase.getInstance(requireContext())
+        val accommodationDao = db.accommodationDao()
+
+        accommodationDao.getAllOrderedByDateDesc().observe(viewLifecycleOwner) { accommodations ->
+            accommodations.forEach { accommodation ->
+                addMarker(accommodation)
             }
         }
     }

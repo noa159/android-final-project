@@ -1,11 +1,17 @@
 package com.project.accommodations.model
- data class Accommodation (
-    val id: String,
-    val name: String,
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import java.util.UUID
+
+@Entity(tableName = "accommodations")
+data class Accommodation(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val downloadUrl: String,
     val email: String,
-    val comment: String,
+    val name: String,
     val phone: String,
+    val comment: String,
     val longitude: Double,
     val latitude: Double,
-    val downloadUrl: String
- )
+    val date: Long
+)

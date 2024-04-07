@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import com.project.accommodations.databinding.FragmentEditBinding
 import com.google.firebase.Timestamp
@@ -22,8 +23,12 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import com.project.accommodations.database.AppDatabase
 import com.project.accommodations.model.Accommodation
 import com.squareup.picasso.Picasso
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.api.IMapController
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -49,7 +54,6 @@ class EditFragment : Fragment() {
 
     // Firebase instances
     private val auth by lazy { Firebase.auth }
-    private val firestore by lazy { Firebase.firestore }
     private val storage by lazy { Firebase.storage }
 
     // ActivityResultLauncher
@@ -76,11 +80,11 @@ class EditFragment : Fragment() {
         // Initialize map and other setup here
         setupMap()
         id = args.id
-        fetchAccommodation()
+        fetchAccommodation();
 
         binding.imageView.setOnClickListener { selectImage() }
-        binding.uploadButton.setOnClickListener { findNavController().popBackStack() }
-        binding.cancelButton.setOnClickListener { update() }
+        binding.uploadButton.setOnClickListener {update() }
+        binding.cancelButton.setOnClickListener { findNavController().popBackStack() }
     }
 
     private fun setupMap() {
@@ -130,90 +134,63 @@ class EditFragment : Fragment() {
         mMap.invalidate()
     }
 
-    fun update() {
-        val uuid = UUID.randomUUID()
-        val imageName = "$uuid.jpg"
-        val reference = storage.reference
-        val imageReference = reference.child("Accommodations").child(imageName)
+    private fun update() {
+        val updateAccommodationDetails = { imageUrl: String ->
+            val updatedAccommodation = Accommodation(
+                id = id,
+                downloadUrl = imageUrl,
+                email = auth.currentUser?.email ?: "",
+                name = binding.nameText.text.toString(),
+                phone = binding.phone.text.toString(),
+                comment = binding.commentText.text.toString(),
+                longitude = selectedPosition.longitude,
+                latitude = selectedPosition.latitude,
+                date = System.currentTimeMillis()
+            )
 
-        if (selectedPicture != null) {
-            imageReference.putFile(selectedPicture!!).addOnSuccessListener {
-
-                imageReference.downloadUrl.addOnSuccessListener {
-                    val downloadUrl = it.toString()
-
-                    val postMap = hashMapOf<String, Any>()
-                    postMap.put("downloadUrl", downloadUrl)
-                    postMap.put("userEmail", auth.currentUser!!.email!!)
-                    postMap.put("name", binding.nameText.text.toString())
-                    postMap.put("phone", binding.phone.text.toString())
-                    postMap.put("comment", binding.commentText.text.toString())
-                    postMap.put("longitude", selectedPosition.longitude)
-                    postMap.put("latitude", selectedPosition.latitude)
-                    postMap.put("date", Timestamp.now())
-
-
-                    firestore.collection("Accommodations").document(id).update(postMap).addOnSuccessListener{
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    AppDatabase.getInstance(requireContext()).accommodationDao().update(updatedAccommodation)
+                    withContext(Dispatchers.Main) {
                         findNavController().popBackStack()
-                    }.addOnFailureListener {
-                        Toast.makeText(requireContext(), "Permission needed!", Toast.LENGTH_LONG)
-                            .show()
                     }
-
-
-
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "Error updating accommodation.", Toast.LENGTH_LONG).show()
+                    }
                 }
-            }.addOnFailureListener {
-                Toast.makeText(requireContext(), "Permission needed!", Toast.LENGTH_LONG)
-                    .show()
             }
         }
-        else {
 
-            val postMap = hashMapOf<String, Any>()
-            postMap.put("downloadUrl", basicImageUrl)
-            postMap.put("userEmail", auth.currentUser!!.email!!)
-            postMap.put("name", binding.nameText.text.toString())
-            postMap.put("phone", binding.phone.text.toString())
-            postMap.put("comment", binding.commentText.text.toString())
-            postMap.put("longitude", selectedPosition.longitude)
-            postMap.put("latitude", selectedPosition.latitude)
-            postMap.put("date", Timestamp.now())
-
-
-            firestore.collection("Accommodations").document(id).update(postMap).addOnSuccessListener{
-                findNavController().popBackStack()
+        if (selectedPicture != null) {
+            val imageName = "${UUID.randomUUID()}.jpg"
+            val imageReference = storage.reference.child("Accommodations/$imageName")
+            imageReference.putFile(selectedPicture!!).addOnSuccessListener {
+                imageReference.downloadUrl.addOnSuccessListener { uri ->
+                    val imageUrl = uri.toString()
+                    updateAccommodationDetails(imageUrl)
+                }
             }.addOnFailureListener {
-                Toast.makeText(requireContext(), "Permission needed!", Toast.LENGTH_LONG)
-                    .show()
+                Toast.makeText(requireContext(), "Failed to upload new image.", Toast.LENGTH_LONG).show()
             }
+        } else {
+            updateAccommodationDetails(basicImageUrl)
         }
     }
     private fun fetchAccommodation() {
-        firestore.collection("Accommodations").document(id).get().addOnSuccessListener { document ->
-            if (document != null) {
-                // Extract fields from the document
-                val id = document.id
-                val comment = document.getString("comment") ?: ""
-                val userEmail = document.getString("userEmail") ?: ""
-                val name = document.getString("name") ?: ""
-                val phone = document.getString("phone") ?: ""
-                val downloadUrl = document.getString("downloadUrl") ?: ""
-                val latitude = document.getDouble("latitude") ?: 0.0
-                val longitude = document.getDouble("longitude") ?: 0.0
-                val accommodation = Accommodation(id, name, userEmail, comment, phone, longitude, latitude, downloadUrl)
+        val accommodationDao = AppDatabase.getInstance(requireContext()).accommodationDao()
+        accommodationDao.getById(id).observe(viewLifecycleOwner) { accommodation ->
+            accommodation?.let {
+                binding.commentText.setText(accommodation.comment)
+                binding.nameText.setText(accommodation.name)
+                binding.phone.setText(accommodation.phone)
+                Picasso.get().load(accommodation.downloadUrl).into(binding.imageView)
 
-                binding.commentText.setText(accommodation.comment);
-                binding.nameText.setText(accommodation.name);
-                binding.phone.setText(accommodation.phone);
-                Picasso.get().load(accommodation.downloadUrl)
-                    .into(binding.imageView)
+                basicImageUrl = accommodation.downloadUrl
 
-                basicImageUrl = accommodation.downloadUrl;
+                selectedPosition = GeoPoint(accommodation.latitude, accommodation.longitude)
 
-
-                selectedPosition = GeoPoint(accommodation.latitude,accommodation.longitude)
-
+                mMap.overlays.clear()
                 val marker = Marker(mMap).apply {
                     position = selectedPosition
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -224,12 +201,9 @@ class EditFragment : Fragment() {
                 controller.setCenter(selectedPosition)
                 mMap.invalidate()
                 controller.setZoom(14.0)
-
-            } else {
-                Toast.makeText(requireContext(), "No document found", Toast.LENGTH_LONG).show()
+            } ?: run {
+                Toast.makeText(requireContext(), "No accommodation found", Toast.LENGTH_LONG).show()
             }
-        }.addOnFailureListener { exception ->
-            Toast.makeText(requireContext(), exception.localizedMessage, Toast.LENGTH_LONG).show()
         }
     }
 
