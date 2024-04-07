@@ -88,6 +88,7 @@ class MapFragment : Fragment(), MapListener {
         binding.btnLogut.setOnClickListener {
             auth.signOut()
             //findNavController().navigate(R.id.ac)
+            findNavController().navigate(R.id.action_mapFragment_to_loginFragment)
         }
 
     }

@@ -85,7 +85,9 @@
                 app:argType="string" />
 
         </action>
-
+        <action
+            android:id="@+id/action_mapFragment_to_loginFragment"
+            app:destination="@id/loginFragment" />
 
     </fragment>
 
